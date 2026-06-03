@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code");
 
   if (!code) {
-    return NextResponse.json({ error: "Missing HighLevel authorization code." }, { status: 400 });
+    return NextResponse.json({ error: "Missing authorization code." }, { status: 400 });
   }
 
   const clientId = process.env.GHL_CLIENT_ID;
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   const userType = (requestUrl.searchParams.get("userType") ?? "Location") as HighLevelUserType;
 
   if (!clientId || !clientSecret || !redirectUri) {
-    return NextResponse.json({ error: "HighLevel OAuth environment variables are not configured." }, { status: 500 });
+    return NextResponse.json({ error: "OAuth environment variables are not configured." }, { status: 500 });
   }
 
   const tokenRequest = buildTokenExchangeRequest({
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   const tokenResponse = await fetch(tokenRequest.url, tokenRequest.init);
 
   if (!tokenResponse.ok) {
-    return NextResponse.json({ error: "HighLevel token exchange failed." }, { status: 502 });
+    return NextResponse.json({ error: "Token exchange failed." }, { status: 502 });
   }
 
   const token = (await tokenResponse.json()) as HighLevelTokenResponse;

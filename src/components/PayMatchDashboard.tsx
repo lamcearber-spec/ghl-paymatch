@@ -26,14 +26,14 @@ export function PayMatchDashboard({ result, mode }: PayMatchDashboardProps) {
     <main className="shell">
       <section className="topbar" aria-label="PayMatch summary">
         <div>
-          <p className="eyebrow">GHL Stripe reconciliation</p>
+          <p className="eyebrow">Stripe reconciliation</p>
           <h1>PayMatch</h1>
           <p className="subcopy">
             Read-only month-end tie-out for paid invoices, captured charges, unpaid active subscriptions, and linked
             amount mismatches.
           </p>
         </div>
-        <div className="mode-pill" title={mode === "fixture" ? "Demo data is active until HighLevel OAuth is connected." : "Live HighLevel data"}>
+        <div className="mode-pill" title={mode === "fixture" ? "Demo data is active until your account is connected." : "Live account data"}>
           <Radar size={16} aria-hidden="true" />
           {mode === "fixture" ? "Fixture scan" : "Live scan"}
         </div>
