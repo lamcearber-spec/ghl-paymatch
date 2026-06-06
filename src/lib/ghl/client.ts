@@ -5,6 +5,7 @@ const HIGHLEVEL_API_VERSION = "2023-02-21";
 
 type QueryValue = string | number | boolean | null | undefined;
 type RawRecord = Record<string, unknown>;
+const PAGE_LIMIT = 100;
 
 export function buildGhlUrl(path: string, query: Record<string, QueryValue> = {}): URL {
   const url = new URL(path.startsWith("/") ? path : `/${path}`, HIGHLEVEL_API_BASE);
@@ -25,29 +26,32 @@ export class HighLevelClient {
   ) {}
 
   async listInvoices(locationId: string, dateRange: DateRange): Promise<Invoice[]> {
-    const records = await this.getList("/invoices/", {
-      locationId,
+    const records = await this.getPaginatedList("/invoices/", {
+      altId: locationId,
+      altType: "location",
       startAt: dateRange.from,
       endAt: dateRange.to,
-      limit: 100
+      limit: PAGE_LIMIT
     });
     return records.map(normalizeInvoice);
   }
 
   async listTransactions(locationId: string, dateRange: DateRange): Promise<Transaction[]> {
-    const records = await this.getList("/payments/transactions", {
-      locationId,
+    const records = await this.getPaginatedList("/payments/transactions", {
+      altId: locationId,
+      altType: "location",
       startAt: dateRange.from,
       endAt: dateRange.to,
-      limit: 100
+      limit: PAGE_LIMIT
     });
     return records.map(normalizeTransaction);
   }
 
   async listSubscriptions(locationId: string): Promise<Subscription[]> {
-    const records = await this.getList("/payments/subscriptions", {
-      locationId,
-      limit: 100
+    const records = await this.getPaginatedList("/payments/subscriptions", {
+      altId: locationId,
+      altType: "location",
+      limit: PAGE_LIMIT
     });
     return records.map(normalizeSubscription);
   }
@@ -58,6 +62,23 @@ export class HighLevelClient {
       limit: 100
     });
     return records.map(normalizeContact);
+  }
+
+  private async getPaginatedList(path: string, query: Record<string, QueryValue>): Promise<RawRecord[]> {
+    const limit = Number(query.limit ?? PAGE_LIMIT);
+    const records: RawRecord[] = [];
+    let offset = 0;
+
+    while (true) {
+      const page = await this.getList(path, { ...query, offset });
+      records.push(...page);
+
+      if (page.length < limit) {
+        return records;
+      }
+
+      offset += limit;
+    }
   }
 
   private async getList(path: string, query: Record<string, QueryValue>): Promise<RawRecord[]> {
@@ -79,23 +100,24 @@ export class HighLevelClient {
 }
 
 export function normalizeInvoice(raw: RawRecord): Invoice {
+  const contactDetails = isRecord(raw.contactDetails) ? raw.contactDetails : undefined;
   const transactionIds = arrayOfStrings(raw.transactionIds ?? raw.transactions);
   const singleTransactionId = asString(raw.transactionId ?? raw.paymentTransactionId);
 
   return {
     id: requiredId(raw),
     number: asString(raw.invoiceNumber ?? raw.number),
-    contactId: asString(raw.contactId ?? raw.customerId),
+    contactId: asString(raw.contactId ?? raw.customerId ?? contactDetails?.id),
     status: asString(raw.status) ?? "unknown",
     totalCents: normalizeMoney(raw.total ?? raw.amount ?? raw.totalAmount ?? raw.amountDue),
     amountPaidCents: maybeMoney(raw.amountPaid),
-    balanceCents: maybeMoney(raw.balance ?? raw.balanceDue),
+    balanceCents: maybeMoney(raw.balance ?? raw.balanceDue ?? raw.amountDue),
     currency: normalizeCurrency(raw.currency),
     transactionIds: singleTransactionId ? [...transactionIds, singleTransactionId] : transactionIds,
     providerChargeId: asString(raw.providerChargeId ?? raw.stripeChargeId ?? raw.chargeId),
     orderId: asString(raw.orderId),
     paidAt: asString(raw.paidAt ?? raw.paymentDate),
-    createdAt: asString(raw.createdAt ?? raw.dateAdded) ?? new Date(0).toISOString()
+    createdAt: asString(raw.createdAt ?? raw.dateAdded ?? raw.issueDate) ?? new Date(0).toISOString()
   };
 }
 
@@ -183,7 +205,15 @@ function normalizeCurrency(value: unknown): string {
 }
 
 function asString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() !== "" ? value : undefined;
+  if (typeof value === "string" && value.trim() !== "") {
+    return value;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return undefined;
 }
 
 function arrayOfStrings(value: unknown): string[] {
