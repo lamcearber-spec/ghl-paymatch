@@ -18,6 +18,8 @@
 ## App Identity
 
 - App name: `PayMatch: Stripe Reconciliation for GHL`
+- HighLevel app ID: `6a2080ce0162381848523c67`
+- Submitted version/status: `1.0.0` / `review`
 - Short name: `PayMatch`
 - Category: Payments, Accounting, Reporting, or Finance/Operations if only one is allowed.
 - Tagline: `Find GHL invoice and subscription revenue leaks before month-end close.`
