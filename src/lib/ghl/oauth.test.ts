@@ -34,9 +34,9 @@ describe("HighLevel OAuth helpers", () => {
     expect(request.init.method).toBe("POST");
     expect(request.init.headers).toMatchObject({
       Accept: "application/json",
-      "Content-Type": "application/json"
+      "Content-Type": "application/x-www-form-urlencoded"
     });
-    expect(JSON.parse(String(request.init.body))).toMatchObject({
+    expect(Object.fromEntries(new URLSearchParams(String(request.init.body)))).toMatchObject({
       client_id: "client_123",
       client_secret: "secret_123",
       grant_type: "authorization_code",
@@ -56,7 +56,7 @@ describe("HighLevel OAuth helpers", () => {
     });
 
     expect(request.url).toBe("https://services.leadconnectorhq.com/oauth/token");
-    expect(JSON.parse(String(request.init.body))).toMatchObject({
+    expect(Object.fromEntries(new URLSearchParams(String(request.init.body)))).toMatchObject({
       grant_type: "refresh_token",
       refresh_token: "refresh_123",
       user_type: "Location"

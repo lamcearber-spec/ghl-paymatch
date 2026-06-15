@@ -70,15 +70,17 @@ export function buildRefreshTokenRequest(input: RefreshInput): { url: string; in
 }
 
 function tokenRequest(body: Record<string, string>): { url: string; init: RequestInit } {
+  const formBody = new URLSearchParams(body);
+
   return {
     url: HIGHLEVEL_TOKEN_URL,
     init: {
       method: "POST",
       headers: {
         Accept: "application/json",
-        "Content-Type": "application/json"
+        "Content-Type": "application/x-www-form-urlencoded"
       },
-      body: JSON.stringify(body)
+      body: formBody.toString()
     }
   };
 }
