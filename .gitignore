@@ -1,5 +1,6 @@
 .next
 .vercel
+.worktrees/
 node_modules
 dist
 coverage
