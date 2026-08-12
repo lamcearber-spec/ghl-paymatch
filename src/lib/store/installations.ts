@@ -19,19 +19,35 @@ export type PayMatchInstallation = {
 export interface InstallationStore {
   get(id: string): Promise<PayMatchInstallation | undefined>;
   save(installation: PayMatchInstallation): Promise<void>;
+  delete(id: string): Promise<void>;
 }
+
+type InstallationStoreOptions = {
+  databaseUrl?: string;
+  environment?: string;
+};
 
 const memoryInstallations = new Map<string, PayMatchInstallation>();
 let cachedStore: InstallationStore | undefined;
 
-export function getInstallationStore(): InstallationStore {
+export function getInstallationStore(options: InstallationStoreOptions = {}): InstallationStore {
+  const hasExplicitOptions = Object.keys(options).length > 0;
+  const databaseUrl = options.databaseUrl ?? process.env.DATABASE_URL;
+  const environment = options.environment ?? process.env.NODE_ENV;
+
+  if (!databaseUrl && environment === "production") {
+    throw new Error("DATABASE_URL must be configured in production; in-memory OAuth storage is not allowed.");
+  }
+
+  if (hasExplicitOptions) {
+    return databaseUrl ? new NeonInstallationStore(databaseUrl) : new MemoryInstallationStore();
+  }
+
   if (cachedStore) {
     return cachedStore;
   }
 
-  cachedStore = process.env.DATABASE_URL
-    ? new NeonInstallationStore(process.env.DATABASE_URL)
-    : new MemoryInstallationStore();
+  cachedStore = databaseUrl ? new NeonInstallationStore(databaseUrl) : new MemoryInstallationStore();
   return cachedStore;
 }
 
@@ -65,6 +81,10 @@ class MemoryInstallationStore implements InstallationStore {
 
   async save(installation: PayMatchInstallation): Promise<void> {
     memoryInstallations.set(installation.id, installation);
+  }
+
+  async delete(id: string): Promise<void> {
+    memoryInstallations.delete(id);
   }
 }
 
@@ -134,6 +154,11 @@ class NeonInstallationStore implements InstallationStore {
         scopes = excluded.scopes,
         updated_at = excluded.updated_at
     `;
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.ensureTable();
+    await this.sql`delete from paymatch_installations where id = ${id}`;
   }
 
   private ensureTable(): Promise<unknown> {

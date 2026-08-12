@@ -27,7 +27,8 @@ describe("scanPayMatch", () => {
   it("uses the stored HighLevel token when installationId is present", async () => {
     const store: InstallationStore = {
       get: vi.fn(async (id: string) => (id === "loc_live" ? liveInstallation : undefined)),
-      save: vi.fn()
+      save: vi.fn(),
+      delete: vi.fn()
     };
     const client = {
       listInvoices: vi.fn(async () => [
@@ -44,12 +45,15 @@ describe("scanPayMatch", () => {
       listSubscriptions: vi.fn(async () => []),
       listContacts: vi.fn(async () => [{ id: "contact_live", name: "Live Agency" }])
     };
+    const recordEvent = vi.fn(async () => undefined);
 
     const scan = await scanPayMatch(
       { installationId: "loc_live", locationId: "ignored", from: "2026-05-01", to: "2026-05-31" },
       {
         store,
-        clientFactory: () => client
+        clientFactory: () => client,
+        getInstallation: vi.fn(async () => liveInstallation),
+        recordEvent
       }
     );
 
@@ -58,5 +62,7 @@ describe("scanPayMatch", () => {
     expect(client.listInvoices).toHaveBeenCalledWith("loc_live", { from: "2026-05-01", to: "2026-05-31" });
     expect(scan.result.tables.paidWithoutCharge).toHaveLength(1);
     expect(scan.result.tables.paidWithoutCharge[0]?.customerName).toBe("Live Agency");
+    expect(recordEvent).toHaveBeenCalledWith(expect.objectContaining({ name: "scan_started", installationId: "loc_live" }));
+    expect(recordEvent).toHaveBeenCalledWith(expect.objectContaining({ name: "scan_completed", installationId: "loc_live" }));
   });
 });
