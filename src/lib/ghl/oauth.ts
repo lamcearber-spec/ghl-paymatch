@@ -7,7 +7,8 @@ export const DEFAULT_READONLY_SCOPES = [
   "payments/orders.readonly",
   "contacts.readonly",
   "products.readonly",
-  "products/prices.readonly"
+  "products/prices.readonly",
+  "oauth.readonly"
 ] as const;
 
 export type HighLevelUserType = "Location" | "Company";

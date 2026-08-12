@@ -52,7 +52,8 @@ Best for agencies that want to catch unpaid retainers, orphaned charges, and mon
 - Distribution for submission: `Public`
 - App URL/custom page URL: `https://ghl-paymatch.vercel.app/`
 - Redirect URL: `https://ghl-paymatch.vercel.app/api/ghl/callback`
-- Webhooks: none for v1.
+- Webhook URL: `https://ghl-paymatch.vercel.app/api/ghl/webhook`
+- Webhook events: App Install, App Update, App Uninstall, Plan Change, App Payment Status
 - External authentication: off for v1.
 
 ## Required Scopes
@@ -66,6 +67,7 @@ Use read scopes only:
 - `contacts.readonly`
 - `products.readonly`
 - `products/prices.readonly`
+- `oauth.readonly`
 
 Do not request write scopes.
 
@@ -83,15 +85,19 @@ If the form only permits one first plan, create Starter first and add Pro after 
 
 PayMatch is intentionally read-only. It uses only HighLevel OAuth read scopes and stores OAuth tokens encrypted for installed accounts. Reconciliation data is read on demand and shown as operational evidence, not accounting, tax, legal, or payment-processing advice.
 
-The production app includes fixture mode so reviewers can see the dashboard before installing with live test data. After OAuth install, the app redirects back with the installation ID and runs the same scan path against the installed location.
+The production app includes clearly labelled fixture mode so reviewers can see the dashboard before installing with live test data. After OAuth install, the app redirects back with an encrypted, expiring installation session and a one-time scan marker. The marker is removed after the report loads, so a browser refresh never consumes another free scan.
+
+Live reports disclose source counts and pagination completeness. If a later HighLevel API page fails, PayMatch labels the report partial and names the affected source instead of presenting incomplete data as a complete reconciliation.
 
 ## Verification Before Submit
 
 - Confirm the draft app is renamed from `vdraft` to PayMatch.
 - Replace placeholder redirect URL with `https://ghl-paymatch.vercel.app/api/ghl/callback`.
-- Confirm scopes are the seven read-only scopes above.
+- Confirm scopes are the eight read-only scopes above.
+- Configure the five signed webhook events on `/api/ghl/webhook`.
+- Enter the native Starter and Pro plan IDs in the matching Vercel environment variables.
 - Confirm app URL is `https://ghl-paymatch.vercel.app/`.
 - Install the private app into a test sub-account.
-- Run `/api/reconcile?installationId=<locationId>` or open `/?installationId=<locationId>` and confirm dashboard mode is `Live scan`.
+- Complete the OAuth test install and use the encrypted `session` URL returned by the callback to confirm dashboard mode is `Live scan`. Raw location IDs are not accepted as browser authorization.
 - Download at least one CSV.
 - Submit only after the private install flow works.

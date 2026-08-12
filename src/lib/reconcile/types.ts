@@ -11,6 +11,20 @@ export type Contact = {
   email?: string;
 };
 
+export type Product = {
+  id: string;
+  name?: string;
+};
+
+export type SourceName = "invoices" | "transactions" | "subscriptions" | "contacts" | "products";
+
+export type SourceCompleteness = {
+  complete: boolean;
+  pagesRead: number;
+  reportedTotal?: number;
+  warning?: string;
+};
+
 export type Invoice = {
   id: string;
   number?: string;
@@ -57,6 +71,8 @@ export type ReconcileInput = {
   invoices: Invoice[];
   transactions: Transaction[];
   subscriptions: Subscription[];
+  products?: Product[];
+  sourceCompleteness?: Partial<Record<SourceName, SourceCompleteness>>;
 };
 
 export type MatchConfidence = "missing" | "review";
@@ -116,6 +132,22 @@ export type ReconcileResult = {
   dateRange: DateRange;
   revenueAtRiskCents: number;
   currency: CurrencyCode;
+  summary: {
+    sourceCounts: Record<SourceName, number>;
+    matchCounts: {
+      exact: number;
+      review: number;
+    };
+    findingCounts: {
+      paidWithoutCharge: number;
+      chargeWithoutInvoice: number;
+      activeSubFailedPayment: number;
+      amountCurrencyMismatch: number;
+    };
+    paginationComplete: boolean;
+    sourceCompleteness: Record<SourceName, SourceCompleteness>;
+    warnings: string[];
+  };
   tables: {
     paidWithoutCharge: PaidWithoutChargeRow[];
     chargeWithoutInvoice: ChargeWithoutInvoiceRow[];

@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value:
               "frame-ancestors 'self' https://*.gohighlevel.com https://*.highlevel.com https://app.gohighlevel.com;"
+          },
+          {
+            key: "Referrer-Policy",
+            value: "no-referrer"
           }
         ]
       }

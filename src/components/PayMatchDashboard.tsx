@@ -1,5 +1,7 @@
 import { AlertTriangle, ArrowDownToLine, BadgeDollarSign, CircleCheckBig, Link2Off, Radar } from "lucide-react";
 import { toCsv } from "@/lib/reconcile/export";
+import { TrackedCsvLink } from "@/components/TrackedCsvLink";
+import type { PayMatchEntitlement } from "@/lib/billing/entitlements";
 import type {
   ActiveSubFailedPaymentRow,
   AmountCurrencyMismatchRow,
@@ -11,9 +13,12 @@ import type {
 type PayMatchDashboardProps = {
   result: ReconcileResult;
   mode: "fixture" | "live";
+  entitlement?: PayMatchEntitlement;
+  marketplaceUrl?: string;
+  session?: string;
 };
 
-export function PayMatchDashboard({ result, mode }: PayMatchDashboardProps) {
+export function PayMatchDashboard({ result, mode, entitlement, marketplaceUrl, session }: PayMatchDashboardProps) {
   const tableCounts = [
     result.tables.paidWithoutCharge.length,
     result.tables.chargeWithoutInvoice.length,
@@ -35,7 +40,7 @@ export function PayMatchDashboard({ result, mode }: PayMatchDashboardProps) {
         </div>
         <div className="mode-pill" title={mode === "fixture" ? "Demo data is active until your account is connected." : "Live account data"}>
           <Radar size={16} aria-hidden="true" />
-          {mode === "fixture" ? "Fixture scan" : "Live scan"}
+          {mode === "fixture" ? "Fixture scan" : result.summary.paginationComplete ? "Live scan" : "Partial scan"}
         </div>
       </section>
 
@@ -50,13 +55,50 @@ export function PayMatchDashboard({ result, mode }: PayMatchDashboardProps) {
         <span>Read-only by design. PayMatch labels fuzzy matches as review and never writes to invoices, payments, or subscriptions.</span>
       </section>
 
+      <SourceCoverage result={result} />
+
+      {result.summary.warnings.length > 0 ? (
+        <section className="warning-panel" aria-label="Partial scan warning">
+          <AlertTriangle size={18} aria-hidden="true" />
+          <div>
+            <strong>This report is partial</strong>
+            {result.summary.warnings.map((warning) => <p key={warning}>{warning}</p>)}
+          </div>
+        </section>
+      ) : null}
+
+      {entitlement?.plan === "free" && entitlement.scansRemaining === 0 ? (
+        <section className="upgrade-panel" aria-label="PayMatch upgrade">
+          <div>
+            <strong>Your free scan is complete.</strong>
+            <p>Keep the report and exports above. Upgrade in HighLevel Marketplace when you need another live scan.</p>
+          </div>
+          <a className="primary-link" href={marketplaceUrl ?? "https://marketplace.gohighlevel.com"}>
+            View PayMatch plans
+          </a>
+        </section>
+      ) : null}
+
       <div className="table-grid">
-        <PaidWithoutChargeTable rows={result.tables.paidWithoutCharge} currency={result.currency} />
-        <ChargeWithoutInvoiceTable rows={result.tables.chargeWithoutInvoice} currency={result.currency} />
-        <ActiveSubFailedPaymentTable rows={result.tables.activeSubFailedPayment} currency={result.currency} />
-        <MismatchTable rows={result.tables.amountCurrencyMismatch} currency={result.currency} />
+        <PaidWithoutChargeTable rows={result.tables.paidWithoutCharge} currency={result.currency} session={session} />
+        <ChargeWithoutInvoiceTable rows={result.tables.chargeWithoutInvoice} currency={result.currency} session={session} />
+        <ActiveSubFailedPaymentTable rows={result.tables.activeSubFailedPayment} currency={result.currency} session={session} />
+        <MismatchTable rows={result.tables.amountCurrencyMismatch} currency={result.currency} session={session} />
       </div>
     </main>
+  );
+}
+
+function SourceCoverage({ result }: { result: ReconcileResult }) {
+  const counts = result.summary.sourceCounts;
+  return (
+    <section className="source-coverage" aria-label="Source coverage">
+      <span><strong>{counts.invoices}</strong> invoices fetched</span>
+      <span><strong>{counts.transactions}</strong> transactions fetched</span>
+      <span><strong>{counts.subscriptions}</strong> subscriptions fetched</span>
+      <span><strong>{counts.contacts}</strong> contacts fetched</span>
+      <span><strong>{counts.products}</strong> products fetched</span>
+    </section>
   );
 }
 
@@ -69,13 +111,14 @@ function Metric({ label, value, tone }: { label: string; value: string; tone: "r
   );
 }
 
-function PaidWithoutChargeTable({ rows, currency }: { rows: PaidWithoutChargeRow[]; currency: string }) {
+function PaidWithoutChargeTable({ rows, currency, session }: { rows: PaidWithoutChargeRow[]; currency: string; session?: string }) {
   return (
     <TableShell
       title="Paid invoices without captured charge"
       icon={<AlertTriangle size={18} aria-hidden="true" />}
       rows={rows}
       csvName="paymatch-paid-without-charge.csv"
+      session={session}
     >
       <thead>
         <tr>
@@ -83,6 +126,7 @@ function PaidWithoutChargeTable({ rows, currency }: { rows: PaidWithoutChargeRow
           <th>Customer</th>
           <th>Amount</th>
           <th>Status</th>
+          <th>Why and next check</th>
         </tr>
       </thead>
       <tbody>
@@ -94,6 +138,7 @@ function PaidWithoutChargeTable({ rows, currency }: { rows: PaidWithoutChargeRow
             <td>
               <Badge tone={row.confidence}>{row.confidence}</Badge>
             </td>
+            <ReasonCell reason={row.reason} next="Open the invoice and confirm its payment activity in HighLevel." />
           </tr>
         ))}
       </tbody>
@@ -101,13 +146,14 @@ function PaidWithoutChargeTable({ rows, currency }: { rows: PaidWithoutChargeRow
   );
 }
 
-function ChargeWithoutInvoiceTable({ rows, currency }: { rows: ChargeWithoutInvoiceRow[]; currency: string }) {
+function ChargeWithoutInvoiceTable({ rows, currency, session }: { rows: ChargeWithoutInvoiceRow[]; currency: string; session?: string }) {
   return (
     <TableShell
       title="Captured charges without closed invoice"
       icon={<Link2Off size={18} aria-hidden="true" />}
       rows={rows}
       csvName="paymatch-charge-without-invoice.csv"
+      session={session}
     >
       <thead>
         <tr>
@@ -115,6 +161,7 @@ function ChargeWithoutInvoiceTable({ rows, currency }: { rows: ChargeWithoutInvo
           <th>Customer</th>
           <th>Amount</th>
           <th>Status</th>
+          <th>Why and next check</th>
         </tr>
       </thead>
       <tbody>
@@ -126,6 +173,7 @@ function ChargeWithoutInvoiceTable({ rows, currency }: { rows: ChargeWithoutInvo
             <td>
               <Badge tone={row.confidence}>{row.confidence}</Badge>
             </td>
+            <ReasonCell reason={row.reason} next="Open the charge and candidate invoice before changing either record." />
           </tr>
         ))}
       </tbody>
@@ -133,13 +181,14 @@ function ChargeWithoutInvoiceTable({ rows, currency }: { rows: ChargeWithoutInvo
   );
 }
 
-function ActiveSubFailedPaymentTable({ rows, currency }: { rows: ActiveSubFailedPaymentRow[]; currency: string }) {
+function ActiveSubFailedPaymentTable({ rows, currency, session }: { rows: ActiveSubFailedPaymentRow[]; currency: string; session?: string }) {
   return (
     <TableShell
       title="Active subscriptions with failed latest payment"
       icon={<BadgeDollarSign size={18} aria-hidden="true" />}
       rows={rows}
       csvName="paymatch-active-sub-failed-payment.csv"
+      session={session}
     >
       <thead>
         <tr>
@@ -147,6 +196,7 @@ function ActiveSubFailedPaymentTable({ rows, currency }: { rows: ActiveSubFailed
           <th>Customer</th>
           <th>Amount</th>
           <th>Payment</th>
+          <th>Why and next check</th>
         </tr>
       </thead>
       <tbody>
@@ -158,6 +208,7 @@ function ActiveSubFailedPaymentTable({ rows, currency }: { rows: ActiveSubFailed
             <td>
               <Badge tone="missing">{row.latestPaymentStatus ?? "failed"}</Badge>
             </td>
+            <ReasonCell reason={row.reason} next="Open the subscription and confirm the latest retry or payment method." />
           </tr>
         ))}
       </tbody>
@@ -165,13 +216,14 @@ function ActiveSubFailedPaymentTable({ rows, currency }: { rows: ActiveSubFailed
   );
 }
 
-function MismatchTable({ rows, currency }: { rows: AmountCurrencyMismatchRow[]; currency: string }) {
+function MismatchTable({ rows, currency, session }: { rows: AmountCurrencyMismatchRow[]; currency: string; session?: string }) {
   return (
     <TableShell
       title="Linked amount or currency mismatch"
       icon={<AlertTriangle size={18} aria-hidden="true" />}
       rows={rows}
       csvName="paymatch-linked-mismatch.csv"
+      session={session}
     >
       <thead>
         <tr>
@@ -179,6 +231,7 @@ function MismatchTable({ rows, currency }: { rows: AmountCurrencyMismatchRow[]; 
           <th>Customer</th>
           <th>Invoice</th>
           <th>Charge</th>
+          <th>Why and next check</th>
         </tr>
       </thead>
       <tbody>
@@ -188,10 +241,20 @@ function MismatchTable({ rows, currency }: { rows: AmountCurrencyMismatchRow[]; 
             <td>{row.customerName}</td>
             <td>{formatMoney(row.invoiceAmountCents, row.invoiceCurrency ?? currency)}</td>
             <td>{formatMoney(row.transactionAmountCents, row.transactionCurrency ?? currency)}</td>
+            <ReasonCell reason={row.reason} next="Compare the linked invoice currency and captured amount before closing the month." />
           </tr>
         ))}
       </tbody>
     </TableShell>
+  );
+}
+
+function ReasonCell({ reason, next }: { reason: string; next: string }) {
+  return (
+    <td className="reason-cell">
+      <span>{reason}</span>
+      <small>{next}</small>
+    </td>
   );
 }
 
@@ -200,12 +263,14 @@ function TableShell<T extends Record<string, unknown>>({
   icon,
   rows,
   csvName,
+  session,
   children
 }: {
   title: string;
   icon: React.ReactNode;
   rows: T[];
   csvName: string;
+  session?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -215,10 +280,10 @@ function TableShell<T extends Record<string, unknown>>({
           {icon}
           {title}
         </h2>
-        <a className="csv-link" href={csvHref(rows)} download={csvName}>
+        <TrackedCsvLink className="csv-link" href={csvHref(rows)} download={csvName} session={session}>
           <ArrowDownToLine size={15} aria-hidden="true" />
           Download CSV
-        </a>
+        </TrackedCsvLink>
       </div>
       <div className="table-wrap">
         <table>{children}</table>

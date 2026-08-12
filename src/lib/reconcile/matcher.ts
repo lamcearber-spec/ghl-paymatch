@@ -6,6 +6,8 @@ import type {
   PaidWithoutChargeRow,
   ReconcileInput,
   ReconcileResult,
+  SourceCompleteness,
+  SourceName,
   Subscription,
   Transaction
 } from "./types";
@@ -87,6 +89,25 @@ export function reconcilePayMatch(input: ReconcileInput): ReconcileResult {
       continue;
     }
 
+    const duplicateInvoice = transaction.invoiceId
+      ? input.invoices.find((invoice) => invoice.id === transaction.invoiceId && exactInvoiceIds.has(invoice.id))
+      : undefined;
+    if (duplicateInvoice) {
+      chargeWithoutInvoice.push({
+        transactionId: transaction.id,
+        providerChargeId: transaction.providerChargeId,
+        customerName: contactName(contacts, transaction.contactId ?? duplicateInvoice.contactId),
+        contactId: transaction.contactId ?? duplicateInvoice.contactId,
+        amountCents: transaction.amountCents,
+        currency: transaction.currency,
+        chargedAt: transaction.createdAt,
+        confidence: "missing",
+        candidateInvoiceId: duplicateInvoice.id,
+        reason: "Multiple captured charges are linked to the same invoice. Confirm whether the second charge should be refunded."
+      });
+      continue;
+    }
+
     const reviewInvoice = reviewTransactionToInvoice.get(transaction.id) ?? findFuzzyInvoice(transaction, input.invoices, exactInvoiceIds);
     chargeWithoutInvoice.push({
       transactionId: transaction.id,
@@ -110,10 +131,37 @@ export function reconcilePayMatch(input: ReconcileInput): ReconcileResult {
       .reduce((total, row) => total + row.amountCents, 0) +
     activeSubFailedPayment.reduce((total, row) => total + row.amountCents, 0);
 
+  const sourceCompleteness = buildSourceCompleteness(input);
+  const warnings = (Object.entries(sourceCompleteness) as [SourceName, SourceCompleteness][])
+    .filter(([, completeness]) => !completeness.complete)
+    .map(([source, completeness]) => `${sourceLabel(source)}: ${completeness.warning ?? "HighLevel returned a partial source."}`);
+
   return {
     dateRange: input.dateRange,
     revenueAtRiskCents,
     currency: inferCurrency(input),
+    summary: {
+      sourceCounts: {
+        invoices: input.invoices.length,
+        transactions: input.transactions.length,
+        subscriptions: input.subscriptions.length,
+        contacts: input.contacts.length,
+        products: input.products?.length ?? 0
+      },
+      matchCounts: {
+        exact: exactMatches.size,
+        review: reviewInvoiceToTransaction.size
+      },
+      findingCounts: {
+        paidWithoutCharge: paidWithoutCharge.length,
+        chargeWithoutInvoice: chargeWithoutInvoice.length,
+        activeSubFailedPayment: activeSubFailedPayment.length,
+        amountCurrencyMismatch: amountCurrencyMismatch.length
+      },
+      paginationComplete: warnings.length === 0,
+      sourceCompleteness,
+      warnings
+    },
     tables: {
       paidWithoutCharge,
       chargeWithoutInvoice,
@@ -121,6 +169,21 @@ export function reconcilePayMatch(input: ReconcileInput): ReconcileResult {
       amountCurrencyMismatch
     }
   };
+}
+
+function buildSourceCompleteness(input: ReconcileInput): Record<SourceName, SourceCompleteness> {
+  const defaults: SourceCompleteness = { complete: true, pagesRead: 1 };
+  return {
+    invoices: input.sourceCompleteness?.invoices ?? defaults,
+    transactions: input.sourceCompleteness?.transactions ?? defaults,
+    subscriptions: input.sourceCompleteness?.subscriptions ?? defaults,
+    contacts: input.sourceCompleteness?.contacts ?? defaults,
+    products: input.sourceCompleteness?.products ?? defaults
+  };
+}
+
+function sourceLabel(source: SourceName): string {
+  return source.charAt(0).toUpperCase() + source.slice(1);
 }
 
 function buildExactMatches(invoices: Invoice[], transactions: Transaction[]): Map<Invoice, Transaction> {

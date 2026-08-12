@@ -15,7 +15,8 @@ describe("HighLevel OAuth helpers", () => {
       "payments/orders.readonly",
       "contacts.readonly",
       "products.readonly",
-      "products/prices.readonly"
+      "products/prices.readonly",
+      "oauth.readonly"
     ]);
     expect(DEFAULT_READONLY_SCOPES.every((scope) => scope.endsWith(".readonly"))).toBe(true);
     expect(() => assertReadonlyScopes([...DEFAULT_READONLY_SCOPES, "contacts.write"])).toThrow(/write/i);

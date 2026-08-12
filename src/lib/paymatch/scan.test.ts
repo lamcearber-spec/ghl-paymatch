@@ -24,6 +24,17 @@ describe("scanPayMatch", () => {
     expect(scan.csv.paidWithoutCharge).toContain("invoiceId");
   });
 
+  it("renders fixture data in production without initializing live storage", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DATABASE_URL", "");
+
+    try {
+      await expect(scanPayMatch()).resolves.toMatchObject({ mode: "fixture", locationId: "demo-location" });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("uses the stored HighLevel token when installationId is present", async () => {
     const store: InstallationStore = {
       get: vi.fn(async (id: string) => (id === "loc_live" ? liveInstallation : undefined)),
@@ -52,6 +63,7 @@ describe("scanPayMatch", () => {
       {
         store,
         clientFactory: () => client,
+        reserveScan: vi.fn(async () => ({ allowed: true, consumedFreeScan: false })),
         getInstallation: vi.fn(async () => liveInstallation),
         recordEvent
       }
@@ -65,4 +77,127 @@ describe("scanPayMatch", () => {
     expect(recordEvent).toHaveBeenCalledWith(expect.objectContaining({ name: "scan_started", installationId: "loc_live" }));
     expect(recordEvent).toHaveBeenCalledWith(expect.objectContaining({ name: "scan_completed", installationId: "loc_live" }));
   });
+
+  it("stops before HighLevel API reads when the free scan is exhausted", async () => {
+    const getInstallation = vi.fn(async () => liveInstallation);
+    const clientFactory = vi.fn();
+
+    await expect(
+      scanPayMatch(
+        { installationId: "loc_live" },
+        {
+          store: fakeInstallationStore(),
+          reserveScan: vi.fn(async () => ({ allowed: false, consumedFreeScan: false })),
+          getInstallation,
+          clientFactory
+        }
+      )
+    ).rejects.toMatchObject({ name: "ScanLimitExceededError" });
+
+    expect(getInstallation).not.toHaveBeenCalled();
+    expect(clientFactory).not.toHaveBeenCalled();
+  });
+
+  it("returns a reserved free scan when a live read fails", async () => {
+    const releaseScan = vi.fn(async () => undefined);
+    const client = {
+      listInvoices: vi.fn(async () => {
+        throw new Error("HighLevel request failed: 503");
+      }),
+      listTransactions: vi.fn(async () => []),
+      listSubscriptions: vi.fn(async () => []),
+      listContacts: vi.fn(async () => [])
+    };
+
+    await expect(
+      scanPayMatch(
+        { installationId: "loc_live" },
+        {
+          store: fakeInstallationStore(),
+          reserveScan: vi.fn(async () => ({ allowed: true, consumedFreeScan: true })),
+          releaseScan,
+          getInstallation: vi.fn(async () => liveInstallation),
+          clientFactory: () => client
+        }
+      )
+    ).rejects.toThrow("HighLevel request failed: 503");
+
+    expect(releaseScan).toHaveBeenCalledWith("loc_live");
+  });
+
+  it("does not release a paid scan after a live read failure", async () => {
+    const releaseScan = vi.fn(async () => undefined);
+    const client = {
+      listInvoices: vi.fn(async () => {
+        throw new Error("HighLevel request failed: 503");
+      }),
+      listTransactions: vi.fn(async () => []),
+      listSubscriptions: vi.fn(async () => []),
+      listContacts: vi.fn(async () => [])
+    };
+
+    await expect(
+      scanPayMatch(
+        { installationId: "loc_live" },
+        {
+          store: fakeInstallationStore(),
+          reserveScan: vi.fn(async () => ({ allowed: true, consumedFreeScan: false })),
+          releaseScan,
+          getInstallation: vi.fn(async () => liveInstallation),
+          clientFactory: () => client
+        }
+      )
+    ).rejects.toThrow("HighLevel request failed: 503");
+
+    expect(releaseScan).not.toHaveBeenCalled();
+  });
+
+  it("carries source completeness and product counts into the report", async () => {
+    const complete = { complete: true, pagesRead: 1, reportedTotal: 0 };
+    const client = {
+      listInvoices: vi.fn(async () => []),
+      listTransactions: vi.fn(async () => []),
+      listSubscriptions: vi.fn(async () => []),
+      listContacts: vi.fn(async () => []),
+      readInvoices: vi.fn(async () => ({
+        records: [],
+        completeness: {
+          complete: false,
+          pagesRead: 1,
+          reportedTotal: 200,
+          warning: "HighLevel stopped responding after page 1; this source is partial."
+        }
+      })),
+      readTransactions: vi.fn(async () => ({ records: [], completeness: complete })),
+      readSubscriptions: vi.fn(async () => ({ records: [], completeness: complete })),
+      readContacts: vi.fn(async () => ({ records: [], completeness: complete })),
+      readProducts: vi.fn(async () => ({
+        records: [{ id: "product_1", name: "Retainer" }],
+        completeness: { complete: true, pagesRead: 1, reportedTotal: 1 }
+      }))
+    };
+
+    const scan = await scanPayMatch(
+      { installationId: "loc_live" },
+      {
+        store: fakeInstallationStore(),
+        reserveScan: vi.fn(async () => ({ allowed: true, consumedFreeScan: false })),
+        getInstallation: vi.fn(async () => liveInstallation),
+        clientFactory: () => client
+      }
+    );
+
+    expect(client.readProducts).toHaveBeenCalledWith("loc_live");
+    expect(scan.result.summary.sourceCounts.products).toBe(1);
+    expect(scan.result.summary.paginationComplete).toBe(false);
+    expect(scan.result.summary.warnings[0]).toMatch(/^Invoices:/);
+  });
 });
+
+function fakeInstallationStore(): InstallationStore {
+  return {
+    get: vi.fn(),
+    save: vi.fn(),
+    delete: vi.fn()
+  };
+}

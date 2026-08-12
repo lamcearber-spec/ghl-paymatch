@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyGhlWebhookSignature } from "@/lib/ghl/webhook";
 import { recordAppEvent, type AppEvent } from "@/lib/observability/events";
 import { getInstallationStore, type InstallationStore } from "@/lib/store/installations";
+import { getEntitlementStore, type EntitlementStore } from "@/lib/billing/entitlements";
 
 type UninstallPayload = {
   type?: string;
@@ -12,6 +13,7 @@ type UninstallPayload = {
 
 type UninstallDependencies = {
   store?: InstallationStore;
+  entitlementStore?: EntitlementStore;
   verifySignature?: (body: string, signature: string | null) => boolean;
   recordEvent?: (event: AppEvent) => Promise<void>;
   expectedAppId?: string;
@@ -49,6 +51,7 @@ export async function handleUninstall(request: Request, deps: UninstallDependenc
   }
 
   await (deps.store ?? getInstallationStore()).delete(installationId);
+  await (deps.entitlementStore ?? getEntitlementStore()).delete(installationId);
   await safeRecordEvent(deps.recordEvent ?? recordAppEvent, {
     installationId,
     name: "uninstalled",

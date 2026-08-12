@@ -3,6 +3,7 @@ import { buildTokenExchangeRequest, type HighLevelTokenResponse, type HighLevelU
 import { getInstallationStore, installationFromTokenResponse } from "@/lib/store/installations";
 import type { InstallationStore } from "@/lib/store/installations";
 import { recordAppEvent, type AppEvent } from "@/lib/observability/events";
+import { createInstallationSession } from "@/lib/security/installation-session";
 
 type CallbackConfig = {
   clientId: string;
@@ -16,6 +17,7 @@ type CallbackDependencies = {
   fetcher?: typeof fetch;
   recordEvent?: (event: AppEvent) => Promise<void>;
   config?: CallbackConfig;
+  sessionSecret?: string;
 };
 
 export async function GET(request: Request) {
@@ -66,7 +68,8 @@ export async function handleOAuthCallback(request: Request, deps: CallbackDepend
     result: "success"
   });
 
-  return NextResponse.redirect(`${config.appBaseUrl}/?connected=1&installationId=${encodeURIComponent(installation.id)}`);
+  const session = createInstallationSession(installation.id, { secret: deps.sessionSecret });
+  return NextResponse.redirect(`${config.appBaseUrl}/?connected=1&session=${encodeURIComponent(session)}&scan=1`);
 }
 
 function callbackConfigFromEnvironment(origin: string): CallbackConfig | undefined {

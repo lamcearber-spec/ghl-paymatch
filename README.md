@@ -21,6 +21,7 @@ PayMatch is a read-only HighLevel Marketplace app for month-end reconciliation b
 - `contacts.readonly`
 - `products.readonly`
 - `products/prices.readonly`
+- `oauth.readonly`
 
 No write scopes are used.
 
@@ -39,7 +40,11 @@ Copy `.env.example` to `.env.local` and fill:
 
 - `GHL_CLIENT_ID`
 - `GHL_CLIENT_SECRET`
+- `GHL_APP_ID`
 - `GHL_REDIRECT_URI`
+- `GHL_PAYMATCH_STARTER_PLAN_ID`
+- `GHL_PAYMATCH_PRO_PLAN_ID`
+- `GHL_PAYMATCH_PRO_LOCATION_LIMIT`
 - `APP_BASE_URL`
 - `INSTALLATION_SECRET`
 - `DATABASE_URL`
@@ -49,6 +54,8 @@ If `DATABASE_URL` is set, PayMatch stores encrypted OAuth tokens in Neon/Postgre
 ## HighLevel Setup
 
 Create a public Marketplace app, target Sub-account, installable by both agency and sub-account. Configure the Custom Page URL to the deployed app root and the OAuth redirect URL to `/api/ghl/callback`.
+
+Configure `https://ghl-paymatch.vercel.app/api/ghl/webhook` as the webhook URL and subscribe it to App Install, App Update, App Uninstall, Plan Change, and App Payment Status. HighLevel signs those events and PayMatch persists only the selected plan, payment state, trial end, and free-scan usage needed for access decisions.
 
 ## Verification
 

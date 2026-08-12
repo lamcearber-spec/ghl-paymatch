@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { AppEvent } from "@/lib/observability/events";
 import type { InstallationStore } from "@/lib/store/installations";
 import { handleOAuthCallback } from "./route";
+import { readInstallationSession } from "@/lib/security/installation-session";
+
+const SESSION_SECRET = "callback-installation-session-secret";
 
 describe("GET /api/ghl/callback", () => {
   it("persists the installation and records a successful install", async () => {
@@ -28,6 +31,7 @@ describe("GET /api/ghl/callback", () => {
         store,
         fetcher,
         recordEvent,
+        sessionSecret: SESSION_SECRET,
         config: {
           clientId: "client_test",
           clientSecret: "secret_test",
@@ -38,7 +42,11 @@ describe("GET /api/ghl/callback", () => {
     );
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://paymatch.test/?connected=1&installationId=loc_test");
+    const redirect = new URL(response.headers.get("location") ?? "");
+    expect(redirect.origin + redirect.pathname).toBe("https://paymatch.test/");
+    expect(redirect.searchParams.get("scan")).toBe("1");
+    expect(redirect.searchParams.has("installationId")).toBe(false);
+    expect(readInstallationSession(redirect.searchParams.get("session") ?? "", { secret: SESSION_SECRET })).toBe("loc_test");
     expect(store.save).toHaveBeenCalledOnce();
     expect(recordEvent).toHaveBeenCalledWith({ installationId: "loc_test", name: "install_completed", result: "success" });
   });
@@ -51,6 +59,7 @@ describe("GET /api/ghl/callback", () => {
         store: fakeStore(),
         fetcher: vi.fn(async () => new Response("bad code", { status: 401 })),
         recordEvent,
+        sessionSecret: SESSION_SECRET,
         config: {
           clientId: "client_test",
           clientSecret: "secret_test",
