@@ -129,4 +129,18 @@ describe("Home", () => {
     expect(scanPayMatch).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: /reconnect paymatch/i })).toBeInTheDocument();
   });
+
+  it("shows a safe retry action when a live HighLevel read fails", async () => {
+    vi.mocked(scanPayMatch).mockRejectedValueOnce(new Error("HighLevel request failed: 422"));
+
+    const element = await Home({ searchParams: Promise.resolve({ session: "valid_session", scan: "1" }) });
+    render(element);
+
+    expect(screen.getByRole("heading", { name: /scan could not complete/i })).toBeInTheDocument();
+    expect(screen.getByText(/was not counted/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /try the scan again/i })).toHaveAttribute(
+      "href",
+      "/?session=valid_session&scan=1"
+    );
+  });
 });

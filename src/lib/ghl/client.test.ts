@@ -56,6 +56,29 @@ describe("HighLevel client helpers", () => {
     expect(calledUrls[0]).toContain("altType=location");
     expect(calledUrls[0]).toContain("offset=0");
     expect(calledUrls[1]).toContain("offset=100");
+    expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
+      headers: expect.objectContaining({ Version: "2021-07-28" })
+    });
+  });
+
+  it("uses the API version required by each HighLevel product family", async () => {
+    const fetcher = vi.fn().mockImplementation(async () => jsonResponse({ data: [] }));
+    const client = new HighLevelClient("token", fetcher);
+
+    await client.listInvoices("loc_123", { from: "2026-05-01", to: "2026-05-31" });
+    await client.listContacts("loc_123");
+    await client.listSubscriptions("loc_123");
+    await client.listProducts("loc_123");
+
+    const versionFor = (callIndex: number) => {
+      const headers = fetcher.mock.calls[callIndex]?.[1]?.headers as Record<string, string>;
+      return headers.Version;
+    };
+
+    expect(versionFor(0)).toBe("2023-02-21");
+    expect(versionFor(1)).toBe("2023-02-21");
+    expect(versionFor(2)).toBe("2021-07-28");
+    expect(versionFor(3)).toBe("2021-07-28");
   });
 
   it("normalizes HighLevel invoice fields without requiring write access", () => {

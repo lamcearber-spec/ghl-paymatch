@@ -9,7 +9,8 @@ import type {
 } from "@/lib/reconcile/types";
 
 export const HIGHLEVEL_API_BASE = "https://services.leadconnectorhq.com";
-const HIGHLEVEL_API_VERSION = "2023-02-21";
+const CRM_API_VERSION = "2023-02-21";
+const COMMERCE_API_VERSION = "2021-07-28";
 
 type QueryValue = string | number | boolean | null | undefined;
 type RawRecord = Record<string, unknown>;
@@ -185,7 +186,7 @@ export class HighLevelClient {
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${this.accessToken}`,
-        Version: HIGHLEVEL_API_VERSION
+        Version: apiVersionForPath(path)
       }
     });
 
@@ -196,6 +197,12 @@ export class HighLevelClient {
     const payload = (await response.json()) as unknown;
     return { records: extractRecords(payload), reportedTotal: extractReportedTotal(payload) };
   }
+}
+
+function apiVersionForPath(path: string): string {
+  return path.startsWith("/payments/") || path.startsWith("/products/")
+    ? COMMERCE_API_VERSION
+    : CRM_API_VERSION;
 }
 
 export function normalizeInvoice(raw: RawRecord): Invoice {

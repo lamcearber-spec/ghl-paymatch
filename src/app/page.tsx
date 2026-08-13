@@ -2,6 +2,7 @@ import { PayMatchDashboard } from "@/components/PayMatchDashboard";
 import { ClearScanMarker } from "@/components/ClearScanMarker";
 import { PayMatchStart } from "@/components/PayMatchStart";
 import { PayMatchErrorState } from "@/components/PayMatchErrorState";
+import { PayMatchScanErrorState } from "@/components/PayMatchScanErrorState";
 import { getPayMatchEntitlement } from "@/lib/billing/entitlements";
 import { ScanLimitExceededError, scanPayMatch } from "@/lib/paymatch/scan";
 import { InstallationNotFoundError, TokenRefreshError } from "@/lib/ghl/session";
@@ -57,6 +58,9 @@ export default async function Home({ searchParams }: { searchParams?: Promise<Se
     }
     if (error instanceof InstallationNotFoundError || error instanceof TokenRefreshError) {
       return <PayMatchErrorState marketplaceUrl={marketplaceUrl} />;
+    }
+    if (session && installationId) {
+      return <PayMatchScanErrorState session={session} />;
     }
     throw error;
   }
