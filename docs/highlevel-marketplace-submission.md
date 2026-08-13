@@ -2,11 +2,11 @@
 
 ## Current State
 
-- Production app URL: `https://ghl-paymatch.vercel.app/`
-- OAuth callback URL: `https://ghl-paymatch.vercel.app/api/ghl/callback`
-- Privacy URL: `https://ghl-paymatch.vercel.app/privacy`
-- Terms URL: `https://ghl-paymatch.vercel.app/terms`
-- Support URL: `https://ghl-paymatch.vercel.app/support`
+- Production app URL: `https://paymatch-recon.vercel.app/`
+- OAuth callback URL: `https://paymatch-recon.vercel.app/api/ghl/callback`
+- Privacy URL: `https://paymatch-recon.vercel.app/privacy`
+- Terms URL: `https://paymatch-recon.vercel.app/terms`
+- Support URL: `https://paymatch-recon.vercel.app/support`
 - Support email: `support@konverter-pro.de`
 - App assets:
   - `public/paymatch-logo-512.png`
@@ -50,15 +50,15 @@ Best for agencies that want to catch unpaid retainers, orphaned charges, and mon
 - Installable by: `Both Agency & Sub-account`
 - Distribution while testing: `Private`
 - Distribution for submission: `Public`
-- App URL/custom page URL: `https://ghl-paymatch.vercel.app/`
-- Redirect URL: `https://ghl-paymatch.vercel.app/api/ghl/callback`
-- Webhook URL: `https://ghl-paymatch.vercel.app/api/ghl/webhook`
+- App URL/custom page URL: `https://paymatch-recon.vercel.app/`
+- Redirect URL: `https://paymatch-recon.vercel.app/api/ghl/callback`
+- Webhook URL: `https://paymatch-recon.vercel.app/api/ghl/webhook`
 - Webhook events: App Install, App Update, App Uninstall, Plan Change, App Payment Status
 - External authentication: off for v1.
 
 ## Required Scopes
 
-Use read scopes only:
+Use read-only business-data scopes plus HighLevel's location-token exchange permission:
 
 - `invoices.readonly`
 - `payments/transactions.readonly`
@@ -68,8 +68,9 @@ Use read scopes only:
 - `products.readonly`
 - `products/prices.readonly`
 - `oauth.readonly`
+- `oauth.write`
 
-Do not request write scopes.
+`oauth.write` is required by HighLevel's v3 agency-to-location token endpoint. It does not grant PayMatch write access to contacts, invoices, payments, orders, subscriptions, products, or prices. Do not request any business-data write scope.
 
 ## Pricing
 
@@ -83,7 +84,7 @@ If the form only permits one first plan, create Starter first and add Pro after 
 
 ## Reviewer Notes
 
-PayMatch is intentionally read-only. It uses only HighLevel OAuth read scopes and stores OAuth tokens encrypted for installed accounts. Reconciliation data is read on demand and shown as operational evidence, not accounting, tax, legal, or payment-processing advice.
+PayMatch is intentionally read-only for all business data. It stores OAuth tokens encrypted for installed accounts and uses `oauth.write` only to obtain an approved sub-account token after an agency installation. Reconciliation data is read on demand and shown as operational evidence, not accounting, tax, legal, or payment-processing advice.
 
 The production app includes clearly labelled fixture mode so reviewers can see the dashboard before installing with live test data. After OAuth install, the app redirects back with an encrypted, expiring installation session and a one-time scan marker. The marker is removed after the report loads, so a browser refresh never consumes another free scan.
 
@@ -92,11 +93,11 @@ Live reports disclose source counts and pagination completeness. If a later High
 ## Verification Before Submit
 
 - Confirm the draft app is renamed from `vdraft` to PayMatch.
-- Replace placeholder redirect URL with `https://ghl-paymatch.vercel.app/api/ghl/callback`.
-- Confirm scopes are the eight read-only scopes above.
+- Replace placeholder redirect URL with `https://paymatch-recon.vercel.app/api/ghl/callback`.
+- Confirm scopes are the eight read-only scopes plus `oauth.write` above.
 - Configure the five signed webhook events on `/api/ghl/webhook`.
 - Enter the native Starter and Pro plan IDs in the matching Vercel environment variables.
-- Confirm app URL is `https://ghl-paymatch.vercel.app/`.
+- Confirm app URL is `https://paymatch-recon.vercel.app/`.
 - Install the private app into a test sub-account.
 - Complete the OAuth test install and use the encrypted `session` URL returned by the callback to confirm dashboard mode is `Live scan`. Raw location IDs are not accepted as browser authorization.
 - Download at least one CSV.

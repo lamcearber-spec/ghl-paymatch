@@ -12,7 +12,7 @@ PayMatch is a read-only HighLevel Marketplace app for month-end reconciliation b
 
 **Pricing:** $39/mo single location, $99/mo Pro multi-location, free one-time scan, 14-day trial.
 
-## Read-Only Scopes
+## Safe Scopes
 
 - `invoices.readonly`
 - `payments/transactions.readonly`
@@ -22,8 +22,9 @@ PayMatch is a read-only HighLevel Marketplace app for month-end reconciliation b
 - `products.readonly`
 - `products/prices.readonly`
 - `oauth.readonly`
+- `oauth.write`
 
-No write scopes are used.
+All business-data access is read-only. HighLevel requires `oauth.write` only to exchange an agency installation token for an approved sub-account token; PayMatch never writes CRM, invoice, payment, product, or contact data.
 
 ## Local Development
 
@@ -55,7 +56,7 @@ If `DATABASE_URL` is set, PayMatch stores encrypted OAuth tokens in Neon/Postgre
 
 Create a public Marketplace app, target Sub-account, installable by both agency and sub-account. Configure the Custom Page URL to the deployed app root and the OAuth redirect URL to `/api/ghl/callback`.
 
-Configure `https://ghl-paymatch.vercel.app/api/ghl/webhook` as the webhook URL and subscribe it to App Install, App Update, App Uninstall, Plan Change, and App Payment Status. HighLevel signs those events and PayMatch persists only the selected plan, payment state, trial end, and free-scan usage needed for access decisions.
+Configure `https://paymatch-recon.vercel.app/api/ghl/webhook` as the webhook URL and subscribe it to App Install, App Update, App Uninstall, Plan Change, and App Payment Status. HighLevel signs those events and PayMatch persists only the selected plan, payment state, trial end, and free-scan usage needed for access decisions.
 
 ## Verification
 

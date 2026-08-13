@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_READONLY_SCOPES,
+  DEFAULT_SAFE_SCOPES,
   assertReadonlyScopes,
+  buildLocationTokenRequest,
   buildRefreshTokenRequest,
   buildTokenExchangeRequest
 } from "./oauth";
 
 describe("HighLevel OAuth helpers", () => {
-  it("ships only readonly scopes by default", () => {
-    expect(DEFAULT_READONLY_SCOPES).toEqual([
+  it("ships readonly data scopes plus the location-token control permission", () => {
+    expect(DEFAULT_SAFE_SCOPES).toEqual([
       "invoices.readonly",
       "payments/transactions.readonly",
       "payments/subscriptions.readonly",
@@ -16,10 +17,34 @@ describe("HighLevel OAuth helpers", () => {
       "contacts.readonly",
       "products.readonly",
       "products/prices.readonly",
-      "oauth.readonly"
+      "oauth.readonly",
+      "oauth.write"
     ]);
-    expect(DEFAULT_READONLY_SCOPES.every((scope) => scope.endsWith(".readonly"))).toBe(true);
-    expect(() => assertReadonlyScopes([...DEFAULT_READONLY_SCOPES, "contacts.write"])).toThrow(/write/i);
+    expect(() => assertReadonlyScopes(DEFAULT_SAFE_SCOPES)).not.toThrow();
+    expect(() => assertReadonlyScopes([...DEFAULT_SAFE_SCOPES, "contacts.write"])).toThrow(/write/i);
+  });
+
+  it("builds a v3 location-token request for an approved sub-account", () => {
+    const request = buildLocationTokenRequest({
+      agencyAccessToken: "agency_token",
+      companyId: "company_123",
+      locationId: "location_123"
+    });
+
+    expect(request.url).toBe("https://services.leadconnectorhq.com/oauth/location-token");
+    expect(request.init).toMatchObject({
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: "Bearer agency_token",
+        "Content-Type": "application/x-www-form-urlencoded",
+        Version: "v3"
+      }
+    });
+    expect(Object.fromEntries(new URLSearchParams(String(request.init.body)))).toEqual({
+      companyId: "company_123",
+      locationId: "location_123"
+    });
   });
 
   it("builds an authorization-code exchange request matching HighLevel token docs", () => {

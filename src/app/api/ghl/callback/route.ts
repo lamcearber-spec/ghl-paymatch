@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { buildTokenExchangeRequest, type HighLevelTokenResponse, type HighLevelUserType } from "@/lib/ghl/oauth";
+import {
+  buildLocationTokenRequest,
+  buildTokenExchangeRequest,
+  type HighLevelTokenResponse,
+  type HighLevelUserType
+} from "@/lib/ghl/oauth";
 import { getInstallationStore, installationFromTokenResponse } from "@/lib/store/installations";
 import type { InstallationStore } from "@/lib/store/installations";
 import { recordAppEvent, type AppEvent } from "@/lib/observability/events";
@@ -60,16 +65,65 @@ export async function handleOAuthCallback(request: Request, deps: CallbackDepend
   }
 
   const token = (await tokenResponse.json()) as HighLevelTokenResponse;
-  const installation = installationFromTokenResponse(token);
-  await (deps.store ?? getInstallationStore()).save(installation);
-  await safeRecordEvent(deps.recordEvent ?? recordAppEvent, {
-    installationId: installation.id,
-    name: "install_completed",
-    result: "success"
-  });
+  const store = deps.store ?? getInstallationStore();
+  const recorder = deps.recordEvent ?? recordAppEvent;
+  const installations = token.userType === "Company"
+    ? await createLocationInstallations(token, deps.fetcher ?? fetch, recorder)
+    : [installationFromTokenResponse(token)];
 
-  const session = createInstallationSession(installation.id, { secret: deps.sessionSecret });
+  if (installations.length === 0) {
+    return NextResponse.json({ error: "No approved HighLevel sub-account was returned." }, { status: 502 });
+  }
+
+  for (const installation of installations) {
+    await store.save(installation);
+    await safeRecordEvent(recorder, {
+      installationId: installation.id,
+      name: "install_completed",
+      result: "success"
+    });
+  }
+
+  const session = createInstallationSession(installations[0].id, { secret: deps.sessionSecret });
   return NextResponse.redirect(`${config.appBaseUrl}/?connected=1&session=${encodeURIComponent(session)}&scan=1`);
+}
+
+async function createLocationInstallations(
+  agencyToken: HighLevelTokenResponse,
+  fetcher: typeof fetch,
+  recorder: (event: AppEvent) => Promise<void>
+) {
+  if (!agencyToken.companyId || !agencyToken.approvedLocations?.length) {
+    return [];
+  }
+
+  const installations = [];
+  for (const locationId of agencyToken.approvedLocations) {
+    const request = buildLocationTokenRequest({
+      agencyAccessToken: agencyToken.access_token,
+      companyId: agencyToken.companyId,
+      locationId
+    });
+    const response = await fetcher(request.url, request.init);
+    if (!response.ok) {
+      await safeRecordEvent(recorder, {
+        installationId: locationId,
+        name: "install_failed",
+        result: "failure",
+        errorCode: `location_token_${response.status}`
+      });
+      continue;
+    }
+
+    const locationToken = (await response.json()) as HighLevelTokenResponse;
+    installations.push(installationFromTokenResponse({
+      ...locationToken,
+      companyId: agencyToken.companyId,
+      locationId,
+      userType: "Location"
+    }));
+  }
+  return installations;
 }
 
 function callbackConfigFromEnvironment(origin: string): CallbackConfig | undefined {

@@ -5,7 +5,9 @@ export default function PrivacyPage() {
     <InfoPage eyebrow="PayMatch" title="Privacy Policy">
       <p>
         PayMatch is a read-only reconciliation app for invoices, payment transactions, and subscriptions. The app
-        requests only read scopes needed to produce month-end discrepancy reports.
+        requests read-only business-data scopes needed to produce month-end discrepancy reports. HighLevel also
+        requires the OAuth location-token permission when an agency installs PayMatch; that permission is used only
+        to connect an approved sub-account and never to change business data.
       </p>
       <p>
         PayMatch stores OAuth access and refresh tokens so installed accounts can run scans. In production, stored

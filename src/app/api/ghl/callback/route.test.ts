@@ -51,6 +51,68 @@ describe("GET /api/ghl/callback", () => {
     expect(recordEvent).toHaveBeenCalledWith({ installationId: "loc_test", name: "install_completed", result: "success" });
   });
 
+  it("exchanges an agency installation for the approved sub-account token", async () => {
+    const store = fakeStore();
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "agency_access",
+            refresh_token: "agency_refresh",
+            token_type: "Bearer",
+            expires_in: 86400,
+            companyId: "company_test",
+            userType: "Company",
+            approvedLocations: ["loc_test"],
+            scope: "invoices.readonly oauth.write"
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "location_access",
+            refresh_token: "location_refresh",
+            token_type: "Bearer",
+            expires_in: 86400,
+            locationId: "loc_test",
+            userType: "Location",
+            scope: "invoices.readonly"
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+
+    const response = await handleOAuthCallback(new Request("https://paymatch.test/api/ghl/callback?code=code_test"), {
+      store,
+      fetcher,
+      recordEvent: vi.fn(async () => undefined),
+      sessionSecret: SESSION_SECRET,
+      config: {
+        clientId: "client_test",
+        clientSecret: "secret_test",
+        redirectUri: "https://paymatch.test/api/ghl/callback",
+        appBaseUrl: "https://paymatch.test"
+      }
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls[1]?.[1]).toMatchObject({
+      headers: expect.objectContaining({ Authorization: "Bearer agency_access", Version: "v3" })
+    });
+    expect(store.save).toHaveBeenCalledWith(expect.objectContaining({
+      id: "loc_test",
+      locationId: "loc_test",
+      userType: "Location",
+      accessToken: "location_access",
+      refreshToken: "location_refresh"
+    }));
+    const redirect = new URL(response.headers.get("location") ?? "");
+    expect(readInstallationSession(redirect.searchParams.get("session") ?? "", { secret: SESSION_SECRET })).toBe("loc_test");
+  });
+
   it("records a stable failure event when HighLevel rejects the exchange", async () => {
     const recordEvent = vi.fn(async (_event: AppEvent) => undefined);
     const response = await handleOAuthCallback(

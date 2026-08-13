@@ -1,6 +1,6 @@
 export const HIGHLEVEL_TOKEN_URL = "https://services.leadconnectorhq.com/oauth/token";
 
-export const DEFAULT_READONLY_SCOPES = [
+export const DEFAULT_SAFE_SCOPES = [
   "invoices.readonly",
   "payments/transactions.readonly",
   "payments/subscriptions.readonly",
@@ -8,7 +8,8 @@ export const DEFAULT_READONLY_SCOPES = [
   "contacts.readonly",
   "products.readonly",
   "products/prices.readonly",
-  "oauth.readonly"
+  "oauth.readonly",
+  "oauth.write"
 ] as const;
 
 export type HighLevelUserType = "Location" | "Company";
@@ -28,6 +29,12 @@ type RefreshInput = TokenRequestInput & {
   refreshToken: string;
 };
 
+type LocationTokenInput = {
+  agencyAccessToken: string;
+  companyId: string;
+  locationId: string;
+};
+
 export type HighLevelTokenResponse = {
   access_token: string;
   token_type: "Bearer" | string;
@@ -39,13 +46,30 @@ export type HighLevelTokenResponse = {
   companyId?: string;
   locationId?: string;
   userId?: string;
+  approvedLocations?: string[];
 };
 
 export function assertReadonlyScopes(scopes: readonly string[]): void {
-  const unsafeScope = scopes.find((scope) => !scope.endsWith(".readonly"));
+  const unsafeScope = scopes.find((scope) => !scope.endsWith(".readonly") && scope !== "oauth.write");
   if (unsafeScope) {
     throw new Error(`PayMatch is read-only; unsafe scope rejected: ${unsafeScope}`);
   }
+}
+
+export function buildLocationTokenRequest(input: LocationTokenInput): { url: string; init: RequestInit } {
+  return {
+    url: "https://services.leadconnectorhq.com/oauth/location-token",
+    init: {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${input.agencyAccessToken}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        Version: "v3"
+      },
+      body: new URLSearchParams({ companyId: input.companyId, locationId: input.locationId }).toString()
+    }
+  };
 }
 
 export function buildTokenExchangeRequest(input: CodeExchangeInput): { url: string; init: RequestInit } {
