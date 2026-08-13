@@ -86,6 +86,10 @@ describe("Home", () => {
     });
     expect(screen.getByText("Live scan")).toBeInTheDocument();
     expect(getPayMatchEntitlement).toHaveBeenCalledWith("loc_live");
+    expect(screen.getAllByRole("link", { name: /download csv/i })[0]).toHaveAttribute(
+      "href",
+      expect.stringContaining("invoiceId%2CinvoiceNumber%2CcustomerName")
+    );
   });
 
   it("does not run another scan when a connected page is refreshed without the scan marker", async () => {

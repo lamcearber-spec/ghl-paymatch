@@ -191,6 +191,7 @@ describe("scanPayMatch", () => {
     expect(scan.result.summary.sourceCounts.products).toBe(1);
     expect(scan.result.summary.paginationComplete).toBe(false);
     expect(scan.result.summary.warnings[0]).toMatch(/^Invoices:/);
+    expect(scan.csv.paidWithoutCharge).toMatch(/^invoiceId,invoiceNumber,customerName/);
   });
 });
 

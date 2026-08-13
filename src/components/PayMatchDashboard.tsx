@@ -1,5 +1,5 @@
 import { AlertTriangle, ArrowDownToLine, BadgeDollarSign, CircleCheckBig, Link2Off, Radar } from "lucide-react";
-import { toCsv } from "@/lib/reconcile/export";
+import { toPayMatchCsv, type PayMatchCsvKind } from "@/lib/reconcile/export";
 import { TrackedCsvLink } from "@/components/TrackedCsvLink";
 import type { PayMatchEntitlement } from "@/lib/billing/entitlements";
 import type {
@@ -118,6 +118,7 @@ function PaidWithoutChargeTable({ rows, currency, session }: { rows: PaidWithout
       icon={<AlertTriangle size={18} aria-hidden="true" />}
       rows={rows}
       csvName="paymatch-paid-without-charge.csv"
+      csvKind="paidWithoutCharge"
       session={session}
     >
       <thead>
@@ -153,6 +154,7 @@ function ChargeWithoutInvoiceTable({ rows, currency, session }: { rows: ChargeWi
       icon={<Link2Off size={18} aria-hidden="true" />}
       rows={rows}
       csvName="paymatch-charge-without-invoice.csv"
+      csvKind="chargeWithoutInvoice"
       session={session}
     >
       <thead>
@@ -188,6 +190,7 @@ function ActiveSubFailedPaymentTable({ rows, currency, session }: { rows: Active
       icon={<BadgeDollarSign size={18} aria-hidden="true" />}
       rows={rows}
       csvName="paymatch-active-sub-failed-payment.csv"
+      csvKind="activeSubFailedPayment"
       session={session}
     >
       <thead>
@@ -223,6 +226,7 @@ function MismatchTable({ rows, currency, session }: { rows: AmountCurrencyMismat
       icon={<AlertTriangle size={18} aria-hidden="true" />}
       rows={rows}
       csvName="paymatch-linked-mismatch.csv"
+      csvKind="amountCurrencyMismatch"
       session={session}
     >
       <thead>
@@ -263,6 +267,7 @@ function TableShell<T extends Record<string, unknown>>({
   icon,
   rows,
   csvName,
+  csvKind,
   session,
   children
 }: {
@@ -270,6 +275,7 @@ function TableShell<T extends Record<string, unknown>>({
   icon: React.ReactNode;
   rows: T[];
   csvName: string;
+  csvKind: PayMatchCsvKind;
   session?: string;
   children: React.ReactNode;
 }) {
@@ -280,7 +286,7 @@ function TableShell<T extends Record<string, unknown>>({
           {icon}
           {title}
         </h2>
-        <TrackedCsvLink className="csv-link" href={csvHref(rows)} download={csvName} session={session}>
+        <TrackedCsvLink className="csv-link" href={csvHref(csvKind, rows)} download={csvName} session={session}>
           <ArrowDownToLine size={15} aria-hidden="true" />
           Download CSV
         </TrackedCsvLink>
@@ -296,8 +302,8 @@ function Badge({ children, tone }: { children: React.ReactNode; tone: "missing" 
   return <span className={`badge badge-${tone}`}>{children}</span>;
 }
 
-function csvHref(rows: Record<string, unknown>[]): string {
-  return `data:text/csv;charset=utf-8,${encodeURIComponent(toCsv(rows as Record<string, string | number | boolean | null | undefined>[]))}`;
+function csvHref(kind: PayMatchCsvKind, rows: Record<string, unknown>[]): string {
+  return `data:text/csv;charset=utf-8,${encodeURIComponent(toPayMatchCsv(kind, rows as Record<string, string | number | boolean | null | undefined>[]))}`;
 }
 
 function formatMoney(cents: number, currency: string): string {

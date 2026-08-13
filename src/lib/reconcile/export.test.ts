@@ -15,4 +15,10 @@ describe("toCsv", () => {
       "customer,note,amountCents\r\n\"Acme, GmbH\",\"Needs \"\"review\"\"\nwith bookkeeper\",12000"
     );
   });
+
+  it("writes explicit headers when a result set is empty", () => {
+    expect(toCsv([], ["invoiceId", "customerName", "amountCents"])).toBe(
+      "invoiceId,customerName,amountCents"
+    );
+  });
 });

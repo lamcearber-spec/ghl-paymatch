@@ -1,6 +1,6 @@
 import { HighLevelClient } from "@/lib/ghl/client";
 import { demoPayMatchInput } from "@/lib/reconcile/fixtures";
-import { toCsv } from "@/lib/reconcile/export";
+import { toPayMatchCsv } from "@/lib/reconcile/export";
 import { reconcilePayMatch } from "@/lib/reconcile/matcher";
 import type {
   Contact,
@@ -185,10 +185,10 @@ function buildScan(mode: PayMatchScan["mode"], locationId: string, result: Recon
     locationId,
     result,
     csv: {
-      paidWithoutCharge: toCsv(result.tables.paidWithoutCharge),
-      chargeWithoutInvoice: toCsv(result.tables.chargeWithoutInvoice),
-      activeSubFailedPayment: toCsv(result.tables.activeSubFailedPayment),
-      amountCurrencyMismatch: toCsv(result.tables.amountCurrencyMismatch)
+      paidWithoutCharge: toPayMatchCsv("paidWithoutCharge", result.tables.paidWithoutCharge),
+      chargeWithoutInvoice: toPayMatchCsv("chargeWithoutInvoice", result.tables.chargeWithoutInvoice),
+      activeSubFailedPayment: toPayMatchCsv("activeSubFailedPayment", result.tables.activeSubFailedPayment),
+      amountCurrencyMismatch: toPayMatchCsv("amountCurrencyMismatch", result.tables.amountCurrencyMismatch)
     }
   };
 }
