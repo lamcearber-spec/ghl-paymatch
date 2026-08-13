@@ -32,6 +32,25 @@ describe("POST /api/ghl/webhook", () => {
     expect(applyEvent).toHaveBeenCalledWith(payload);
   });
 
+  it("provisions the installed sub-account from a signed install event", async () => {
+    const provisionLocation = vi.fn(async () => undefined);
+    const payload: MarketplaceBillingEvent = {
+      type: "INSTALL",
+      appId: "app_paymatch",
+      companyId: "company_1",
+      locationId: "loc_1"
+    };
+
+    const response = await handleMarketplaceWebhook(webhookRequest(payload), {
+      verifySignature: () => true,
+      applyEvent: vi.fn(async () => undefined),
+      provisionLocation
+    });
+
+    expect(response.status).toBe(200);
+    expect(provisionLocation).toHaveBeenCalledWith({ companyId: "company_1", locationId: "loc_1" });
+  });
+
   it("returns a stable client error for an unsupported event", async () => {
     const response = await handleMarketplaceWebhook(webhookRequest({ type: "CONTACT_CREATE" }), {
       verifySignature: () => true,

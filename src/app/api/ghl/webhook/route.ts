@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { applyMarketplaceBillingEvent, type MarketplaceBillingEvent } from "@/lib/billing/entitlements";
 import { verifyGhlWebhookSignature } from "@/lib/ghl/webhook";
+import { provisionLocationInstallation } from "@/lib/ghl/provision-location";
 import { getInstallationStore, type InstallationStore } from "@/lib/store/installations";
 
 type WebhookDependencies = {
   verifySignature?: (body: string, signature: string | null) => boolean;
   applyEvent?: (event: MarketplaceBillingEvent) => Promise<void>;
   installationStore?: InstallationStore;
+  provisionLocation?: (input: { companyId: string; locationId: string }) => Promise<unknown>;
 };
 
 export async function POST(request: Request) {
@@ -29,6 +31,12 @@ export async function handleMarketplaceWebhook(request: Request, deps: WebhookDe
 
   try {
     await (deps.applyEvent ?? applyMarketplaceBillingEvent)(event);
+    if (event.type === "INSTALL" && event.companyId && event.locationId) {
+      await (deps.provisionLocation ?? provisionLocationInstallation)({
+        companyId: event.companyId,
+        locationId: event.locationId
+      });
+    }
     if (event.type === "UNINSTALL") {
       const installationId = event.locationId ?? event.companyId;
       if (installationId) {
