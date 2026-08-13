@@ -49,6 +49,17 @@ export default async function Home({ searchParams }: { searchParams?: Promise<Se
           marketplaceUrl={marketplaceUrl}
           session={session}
         />
+        {!installationId ? (
+          <aside className="prospect-guide" aria-label="HighLevel agency guide">
+            <div>
+              <strong>Planning your agency stack?</strong>
+              <p>Compare HighLevel plans and choose based on client volume, API needs, and SaaS resale.</p>
+            </div>
+            <a className="primary-link" href="/highlevel-for-agencies?source=paymatch_content">
+              HighLevel agency guide
+            </a>
+          </aside>
+        ) : null}
       </>
     );
   } catch (error) {

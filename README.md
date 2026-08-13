@@ -49,8 +49,13 @@ Copy `.env.example` to `.env.local` and fill:
 - `APP_BASE_URL`
 - `INSTALLATION_SECRET`
 - `DATABASE_URL`
+- `HIGHLEVEL_AFFILIATE_LINKS_JSON`
 
 If `DATABASE_URL` is set, PayMatch stores encrypted OAuth tokens in Neon/Postgres. Without it, development uses memory storage.
+
+`HIGHLEVEL_AFFILIATE_LINKS_JSON` contains only verified links generated for Radom UG's recovered HighLevel affiliate
+ledger. Keep it unset until the original ledger is recovered. The guide then remains available without outbound signup
+buttons. See `docs/operations/highlevel-affiliate.md` for the activation and reconciliation procedure.
 
 ## HighLevel Setup
 

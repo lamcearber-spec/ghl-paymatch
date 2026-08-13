@@ -147,4 +147,21 @@ describe("Home", () => {
       "/?session=valid_session&scan=1"
     );
   });
+
+  it("links public fixture visitors to the HighLevel agency guide", async () => {
+    const element = await Home();
+    render(element);
+
+    expect(screen.getByRole("link", { name: /highlevel agency guide/i })).toHaveAttribute(
+      "href",
+      "/highlevel-for-agencies?source=paymatch_content"
+    );
+  });
+
+  it("suppresses the prospect guide for an installed HighLevel customer", async () => {
+    const element = await Home({ searchParams: Promise.resolve({ session: "valid_session" }) });
+    render(element);
+
+    expect(screen.queryByRole("link", { name: /highlevel agency guide/i })).not.toBeInTheDocument();
+  });
 });

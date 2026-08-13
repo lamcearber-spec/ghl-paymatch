@@ -19,6 +19,12 @@ export default function PrivacyPage() {
         amounts, currencies, and payment statuses. PayMatch does not write to invoices, payments, contacts, products,
         or subscriptions.
       </p>
+      <p>
+        Public agency guides may contain clearly disclosed HighLevel affiliate links tracked by FirstPromoter. PayMatch
+        records only the selected plan, an allowlisted campaign source, and the click time for aggregate attribution;
+        it does not add names, email addresses, IP addresses, or installation identifiers to that local click record.
+        FirstPromoter and HighLevel may process referral data under their own privacy terms after you follow a link.
+      </p>
       <p>Support and deletion requests: support@konverter-pro.de.</p>
     </InfoPage>
   );
