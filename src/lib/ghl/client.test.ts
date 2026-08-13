@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { HighLevelClient, buildGhlUrl, normalizeInvoice, normalizeSubscription, normalizeTransaction } from "./client";
+import {
+  HighLevelClient,
+  HighLevelRequestError,
+  buildGhlUrl,
+  normalizeInvoice,
+  normalizeSubscription,
+  normalizeTransaction
+} from "./client";
 
 describe("HighLevel client helpers", () => {
   it("builds read-only list URLs with required altId and altType filters", () => {
@@ -79,6 +86,21 @@ describe("HighLevel client helpers", () => {
     expect(versionFor(1)).toBe("2023-02-21");
     expect(versionFor(2)).toBe("2021-07-28");
     expect(versionFor(3)).toBe("2021-07-28");
+  });
+
+  it("identifies the rejected HighLevel source without exposing credentials", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 401 }));
+    const client = new HighLevelClient("private-token", fetcher);
+
+    const request = client.listContacts("loc_123");
+
+    await expect(request).rejects.toBeInstanceOf(HighLevelRequestError);
+    await expect(request).rejects.toMatchObject({
+      name: "HighLevelRequestError",
+      path: "/contacts/",
+      status: 401
+    });
+    await expect(request).rejects.not.toHaveProperty("accessToken");
   });
 
   it("normalizes HighLevel invoice fields without requiring write access", () => {

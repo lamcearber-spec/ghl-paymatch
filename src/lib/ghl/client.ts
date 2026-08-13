@@ -22,6 +22,16 @@ export type SourceRead<T> = {
   completeness: SourceCompleteness;
 };
 
+export class HighLevelRequestError extends Error {
+  constructor(
+    readonly path: string,
+    readonly status: number
+  ) {
+    super(`HighLevel request failed for ${path}: ${status}`);
+    this.name = "HighLevelRequestError";
+  }
+}
+
 type RawPage = {
   records: RawRecord[];
   reportedTotal?: number;
@@ -191,7 +201,8 @@ export class HighLevelClient {
     });
 
     if (!response.ok) {
-      throw new Error(`HighLevel request failed: ${response.status}`);
+      console.warn("HighLevel source request rejected", { path, status: response.status });
+      throw new HighLevelRequestError(path, response.status);
     }
 
     const payload = (await response.json()) as unknown;
